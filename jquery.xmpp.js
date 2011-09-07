@@ -144,7 +144,8 @@
 		/**
 		 * Send a text message
 		 * @params Object
-		 *         {message: "Hey dude!"}
+		 *         {message: "Hey dude!",
+		 * 			to: someone@somewhere.com}
 		 */
 		sendMessage: function(options){
 			var xmpp = this;
