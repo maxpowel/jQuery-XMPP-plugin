@@ -29,38 +29,47 @@ Initialization
 
 You should provide to the plugin the jid, password and handlers. Just something like this:
 
-       $.xmpp.connect({jid:"user@domain.com", password:"qwerty",
+       try{
+       $.xmpp.connect({jid:"user@domain.com", password:"qwerty", url:"http://myboshservice.com/http-bind"
        onDisconnect:function(){
        ...
        },onConnect: function(){
-       ...
+            console.log("Connected");
        },
        onIq: function(iq){
        ...
        },onMessage: function(message){
-       ...
+            console.log("New message of " + message.from + ": "+message.body);
        },onPresence: function(presence){
-       ...
+            console.log("New presence of " + presence.from + " is "+presence.show);
        }
        });
-
+       catch(e){ console.log("Username or password are incorrect!")}
 
 
 Every option except the handlers are required. Usually are only used onMessage and onPresence handlers.
 
-The object sent to every handler is the full XMPP object. Such xmpp is just XML you can access to the data like you do with the DOM elements.
+
+The object sent to onMessage is:
+     `{from:"user@server.com", to:"receiver@aaa.com", body:"Ey!"}`
+       
+The object sent to onPresence is:
+     `{from:"user@server.com", to:"receiver@aaa.com", show:"away"}`
+The normal values for "show" are: away, dnd (do not disturb) and null (online)
+       
+       
+The object sent to onIQ is the full XMPP object. Such xmpp is just XML you can access to the data like you do with the DOM elements.
 For example, when you receive a text message the full message is something like this:
 
        <body xmlns="http://jabber.org/protocol/httpbind">
-           <message from="aa@bb.com" to="aafriend@bb.com" type="chat">
-                <body>Ey!!!</body>
-           </message>
+           <iq from="aa@bb.com" to="aafriend@bb.com" otherAttr="value">
+                <something>TEXT</something>
+           </iq>
        </body>
 
-Then, you can use "find" to get the text message o "attribute" to get the attributes. In this example, we can get the "from" like this:
+Then, you can use "find" to get the contents o "attribute" to get the attributes. In this example, we can get the value of the tag something like this:
 
-     message = $(message).find("message");
-     var from = message.attr("from"); 
+     value = $(iq).find("something").html();
 
 
 
@@ -71,13 +80,13 @@ Send a text message
      `$.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com"});`
 
 Setting a presence
-     `$.xmpp.setPresence("online");`
+     `$.xmpp.setPresence(null);`
 
 Remember that after connect you should set presence to online if you want be visible by your contacts.
 
 The common presence types are:
 
-*   online
+*   null online (null value, not the string "null")
 
 *   offline
 
