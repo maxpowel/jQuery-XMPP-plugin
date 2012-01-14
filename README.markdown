@@ -30,10 +30,11 @@ Initialization
 You should provide to the plugin the jid, password and handlers. Just something like this:
 
        try{
-       $.xmpp.connect({jid:"user@domain.com", password:"qwerty", url:"http://myboshservice.com/http-bind"
+       $.xmpp.connect({resource:"MyChat", jid:"user@domain.com", password:"qwerty", url:"http://myboshservice.com/http-bind"
        onDisconnect:function(){
        ...
        },onConnect: function(){
+            $.xmpp.setPresence(null);
             console.log("Connected");
        },
        onIq: function(iq){
@@ -51,7 +52,8 @@ Every option except the handlers are required. Usually are only used onMessage a
 
 
 The object sent to onMessage is:
-     `{from:"user@server.com", to:"receiver@aaa.com", body:"Ey!"}`
+     `{from:"user@server.com/resource", to:"receiver@aaa.com", body:"Ey!"}`
+If message.body is null it means that is a composing notification message (the other person is writing a message)
        
 The object sent to onPresence is:
      `{from:"user@server.com", to:"receiver@aaa.com", show:"away"}`
@@ -77,7 +79,9 @@ Sending commands
 ----------------
 
 Send a text message
-     `$.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com"});`
+     `$.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat"});`
+Resource parameer is optional and instead of this parameter you can add the resource to the "to" parameter (to:"someone@somewhere.com/MyChat"). Take care of not use resource parameter on initialization if you want to use the second way.
+This resource parameter overrides the resource value provided on initialization (if any).
 
 Setting a presence
      `$.xmpp.setPresence(null);`
@@ -86,7 +90,7 @@ Remember that after connect you should set presence to online if you want be vis
 
 The common presence types are:
 
-*   null online (null value, not the string "null")
+*   null (null value, not the string "null") to set the presence to online
 
 *   offline
 
