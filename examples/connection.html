@@ -1,0 +1,65 @@
+<html>
+	<head>
+		<title>Basic connection</title>
+	</head>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
+
+
+<script type="text/javascript" src="http://jair.lab.fi.uva.es/~alvagar/jQuery-XMPP-plugin/jquery.xmpp.js"></script>
+
+
+<body>
+This example just connect notify when connected and show the connected contacts.
+<br>
+Jid <input type="text" id="jid"> (ej: maxpowel@gmail.com, alvaro.maxpowel@chat.facebook.com)
+<br>
+Password <input type="password" id="pass">
+<br>
+<button id="connectBut">Connect</button>
+<button id="disconnectBut">Disconnect</button>
+<br>
+<div id="log">
+</div>
+</body>
+<script>
+
+$(document).ready(function(){
+	$("#connectBut").click(function(){
+		var jid = $("#jid").val();
+		var password = $("#pass").val();
+		var logContainer = $("#log");
+		
+		//An example of bosh server. This site is working but it can change or go down.
+		//If you are going to have a production site, you must install your own BOSH server
+		var url ="http://bosh.metajack.im:5280/xmpp-httpbind";
+		$.xmpp.connect({url:url, jid: jid, password: password,
+			onConnect: function(){
+				logContainer.append("<div>Connected</div>");
+				$.xmpp.setPresence(null, function(){
+					logContainer.append("<div>Presence changed to online</div>");
+				});
+			},
+			onPresence: function(presence){
+				logContainer.append("<div>New presence: "+ presence.from +"</div>");
+			},
+			onDisconnect: function(){
+				logContainer.append("<div>Disconnected...</div>");
+			},
+			onError: function(error){
+				logContainer.append("<div>Error: "+ error.error +"</div>");
+			}
+		});		
+	});
+	
+	$("#disconnectBut").click(function(){
+		$.xmpp.disconnect();
+	});
+	
+});
+
+
+
+</script>
+
+</html>

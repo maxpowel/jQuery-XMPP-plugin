@@ -29,6 +29,7 @@
 	onMessage: null,
 	onIq: null,
 	onPresence: null,
+	onError: null,
 	connections: 0,
 	resource: null,
 	/**
@@ -42,7 +43,7 @@
 	 *          onIq: function(iq){},
      *          onMessage: function(message){},
      *          onPresence: function(presence){}
-     * 			onConnectionFailed: function(data){}
+     * 			onError: function(error, data){}
      *         }
 	 */
 		connect: function(options){
@@ -68,6 +69,9 @@
 			this.onMessage = options.onMessage;
 			this.onIq = options.onIq;
 			this.onPresence = options.onPresence;
+			this.onError = options.onError;
+			this.onDisconnect = options.onDisconnect;
+			this.onConnect = options.onConnect;
 			
 			//Init connection
 			var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='60' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
@@ -78,7 +82,38 @@
 					xmpp.loginPlain(options);
 				}else if(response.find("mechanism:contains('DIGEST-MD5')").length){
 					xmpp.loginDigestMD5(options);
-				}else throw "No auth method supported";
+				}else{
+					if(xmpp.onError != null){
+							xmpp.onError({error:"No auth method supported", data:data});
+					}
+					
+				} 
+			}, 'text');
+		},
+		
+		/**
+		* Disconnect from the server
+		* @params function callback
+		*/
+		disconnect: function(callback){
+			var xmpp = this;
+			xmpp.rid = xmpp.rid + 1;
+			this.listening = true;
+			xmpp.connections = xmpp.connections + 1;
+			var msg = "<body rid='"+ this.rid +"' xmlns='http://jabber.org/protocol/httpbind' sid='"+ this.sid +"' type='terminate'><presence xmlns='jabber:client' type='unavailable'/></body>";
+			$.post(this.url,msg,function(data){
+				xmpp.connections = xmpp.connections - 1;
+				xmpp.messageHandler(data);
+				xmpp.listening = false;
+				//Do not listen anymore!
+				
+				//Two callbacks
+				if(callback != null)
+					callback(data);
+					
+				if(xmpp.onDisconnect != null)
+					xmpp.onDisconnect(data);
+				
 			}, 'text');
 		},
 		
@@ -151,21 +186,34 @@
 								  cnonce + ":auth:" +
 								  MD5.hexdigest(A2))) + ',';
 				responseText += 'charset="utf-8"';
-				console.log(responseText);
 				//
 				//Try o authenticate
 				xmpp.rid++;
 				var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+Base64.encode(responseText)+"</response></body>";
 				$.post(this.url,msg,function(data){
-					//var response = $(data);
-					xmpp.rid++;
-					var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/></body>";
-					$.post(this.url,msg,function(data){
-						console.log(data);
-						//var response = $(data);
-						//xmpp.rid++;
-						//var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/></body>";
-					}, 'text');
+						var response = $(xmpp.fixBody(data));
+						if(!response.find("failure").length)
+						{
+							xmpp.rid++;
+							var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/></body>";
+							$.post(this.url,msg,function(data){
+								var response = $(xmpp.fixBody(data));
+								if(response.find("success").length){
+									if(xmpp.onConnect != null)
+										xmpp.onConnect(data);
+											
+									xmpp.listen();
+								}else{
+									if(xmpp.onError != null)
+									xmpp.onError({error: "Invalid credentials", data:data});
+								}
+						
+						
+							}, 'text');
+					}else{
+							if(xmpp.onError != null)
+								xmpp.onError({error: "Invalid credentials", data:data});
+					}
 				}, 'text');
 				
 			}, 'text');
@@ -192,7 +240,6 @@
 			var url = this.url;
 			$.post(this.url,text,function(data){
 				var response = $(xmpp.fixBody(data));
-
 				if(response.find("success").length)
 				{
 					xmpp.rid++;
@@ -214,8 +261,8 @@
 						}, 'text');
 					}, 'text');
 				}else{
-					 if(options.onConnectionFailed != null)
-						options.onConnecttionFailed(data);
+					 if(options.onError != null)
+						options.onError({error: "Invalid credentials", data:data});
 				}
 			}, 'text');
 		},
@@ -257,9 +304,11 @@
 		 * @params Object
 		 *         {body: "Hey dude!",
 		 * 			to: "someone@somewhere.com"
-		 * 			resource: "Chat"}
+		 * 			resource: "Chat",
+		 * 			}
+		 * @params callback: function(){}
 		 */
-		sendMessage: function(options){
+		sendMessage: function(options, callback){
 			var xmpp = this;
 			var resource;
 			var toJid = options.to;
@@ -278,15 +327,17 @@
 				xmpp.messageHandler(data);
 				xmpp.listening = false;
 				xmpp.listen();
+				if(callback != null)
+					callback(data);
 			}, 'text');
 		},
 		
 		/**
 		 * Change the presence
-		 * @params String
-		 * The common presences are: null, away, dnd
+		 * @params String The common presences are: null, away, dnd
+		 * @params callback: function(){}
 		 */
-		setPresence: function(type){
+		setPresence: function(type, callback){
 			var xmpp = this;
 			xmpp.rid = xmpp.rid + 1;
 			this.listening = true;
@@ -300,6 +351,8 @@
 				xmpp.messageHandler(data);
 				xmpp.listening = false;
 				xmpp.listen();
+				if(callback != null)
+					callback(data);
 			}, 'text');
 
 		},
@@ -346,10 +399,6 @@
 			});
 		},
 		
-		disconnect: function(){
-			
-		},
-		
 		/**
 		 * Replaces <body> tags because jquery does not "parse" this tag
 		 * @params String
@@ -372,7 +421,7 @@
 
 
 
-//Dependencias
+//Dependencies, you can use an external file
 // This code was written by Tyler Akins and has been placed in the
 // public domain.  It would be nice if you left this header intact.
 // Base64 code from Tyler Akins -- http://rumkin.com
