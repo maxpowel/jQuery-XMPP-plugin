@@ -305,12 +305,12 @@
 		 *         {body: "Hey dude!",
 		 * 			to: "someone@somewhere.com"
 		 * 			resource: "Chat",
-		 *          type: "chat",
 		 *          otherAttr: "value"
 		 * 			}
+		 * @params data: Extra information such errors
 		 * @params callback: function(){}
 		 */
-		sendMessage: function(options, callback){
+		sendMessage: function(options, data, callback){
 			var xmpp = this;
 			var resource;
 			var toJid = options.to;
@@ -329,13 +329,16 @@
 			delete options.body;
 			delete options.resource;
 			
+			//Other data
+			var dataObj = $("<data>");
+			dataObj.append(data);
 			//Add all parameters to the message
 			var messageObj = $("<obj><message type='chat' to='"+toJid+"' xmlns='jabber:client'>body</message></obj>");
 			messageObj.find("message").attr(options);
 			//Use raw text because jquery "destroy" the body tag
 			var message = messageObj.html().split("body");
 
-			msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><message type='chat' to='"+toJid+"' xmlns='jabber:client'>"+message[0]+"<body>"+body+"</body>"+message[1]+"</message></body>";
+			msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><message type='chat' to='"+toJid+"' xmlns='jabber:client'>"+message[0]+"<body>"+body+"</body>"+message[1]+""+dataObj.html()+"</message></body>";
 			$.post(this.url,msg,function(data){
 				xmpp.connections = xmpp.connections - 1;
 				xmpp.messageHandler(data);
