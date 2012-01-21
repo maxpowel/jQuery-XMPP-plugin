@@ -1,0 +1,99 @@
+<html>
+	<head>
+		<title>Basic connection</title>
+	</head>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
+
+
+<script type="text/javascript" src="http://jair.lab.fi.uva.es/~alvagar/jQuery-XMPP-plugin/jquery.xmpp.js"></script>
+
+
+<body>
+This example just connect notify when connected and show the connected contacts.
+<br>
+Jid <input type="text" id="jid"> (ej: maxpowel@gmail.com, alvaro.maxpowel@chat.facebook.com)
+<br>
+Password <input type="password" id="pass">
+<br>
+<button id="connectBut">Connect</button>
+<button id="disconnectBut">Disconnect</button>
+<br>
+<div id="log">
+</div>
+<ul id="contacts">
+</ul>
+</body>
+<script>
+
+$(document).ready(function(){
+	$("#connectBut").click(function(){
+		var jid = $("#jid").val();
+		var password = $("#pass").val();
+		var logContainer = $("#log");
+		var contactList = $("#contacts");
+		
+		//An example of bosh server. This site is working but it can change or go down.
+		//If you are going to have a production site, you must install your own BOSH server
+		var url ="http://bosh.metajack.im:5280/xmpp-httpbind";
+		$.xmpp.connect({url:url, jid: jid, password: password,
+			onConnect: function(){
+				logContainer.html("Connected");
+				$.xmpp.setPresence(null);
+			},
+			onPresence: function(presence){
+				
+				var contact = $("<li>");
+				contact.append("<a href='javascript:void(0)'>"+ presence.from +"</a>");
+				contact.find("a").click(function(){
+						var id = MD5.hexdigest(presence.from);
+						var conversation = $("#"+id);
+						if(conversation.length == 0)
+							openChat({to:presence.from});
+				});
+				contactList.append(contact);
+			},
+			onDisconnect: function(){
+				logContainer.html("Disconnected");
+			},
+			onMessage: function(message){
+				
+				var jid = message.from.split("/");
+				var id = MD5.hexdigest(message.from);
+				var conversation = $("#"+id);
+				if(conversation.length == 0){
+					openChat({to:message.from});
+				}
+				conversation = $("#"+id);
+				conversation.find(".conversation").append("<div>"+ jid[0] +": "+ message.body +"</div>");
+			},onError:function(error){
+				alert(error.error);
+			}
+		});		
+	});
+	
+	$("#disconnectBut").click(function(){
+		$.xmpp.disconnect();
+	});
+	
+});
+
+
+function openChat(options){
+	var id = MD5.hexdigest(options.to);
+	//id = "conver";
+	var chat = $("<div style='border: 1px solid #000000; float:left' id='"+id+"'><div style='border: 1px solid #000000;'>Chat with "+options.to+"</div><div style='height:150px;overflow: auto;' class='conversation'></div><div><input type='text' /><button>Send</button></div></div>");
+	var input = chat.find("input");
+	var sendBut = chat.find("button");
+	var conversation = chat.find(".conversation");
+	sendBut.click(function(){
+		$.xmpp.sendMessage({to:options.to, body: input.val()});
+		conversation.append("<div>"+ $.xmpp.jid +": "+ input.val() +"</div>");
+		input.val("");
+	});
+	$("body").append(chat);
+}
+
+</script>
+
+</html>
