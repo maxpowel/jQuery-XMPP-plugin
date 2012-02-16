@@ -6,7 +6,7 @@
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
 
 
-<script type="text/javascript" src="http://jair.lab.fi.uva.es/~alvagar/jQuery-XMPP-plugin/jquery.xmpp.js"></script>
+<script type="text/javascript" src="https://raw.github.com/maxpowel/jQuery-XMPP-plugin/master/jquery.xmpp.js"></script>
 
 
 <body>
@@ -81,7 +81,7 @@ $(document).ready(function(){
 
 function openChat(options){
 	var id = MD5.hexdigest(options.to);
-	//id = "conver";
+	
 	var chat = $("<div style='border: 1px solid #000000; float:left' id='"+id+"'><div style='border: 1px solid #000000;'>Chat with "+options.to+"</div><div style='height:150px;overflow: auto;' class='conversation'></div><div><input type='text' /><button>Send</button></div></div>");
 	var input = chat.find("input");
 	var sendBut = chat.find("button");
