@@ -84,9 +84,15 @@ Resource parameer is optional and instead of this parameter you can add the reso
 This resource parameter overrides the resource value provided on initialization (if any).
 
 Send a more complex text message
-     `$.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat", otherAttr:"value"},"<error>My custom error</error>",function(){ alert("Message sent!"); });`
+
+       $.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat", otherAttr:"value"},
+       "<error>My custom error</error>",function(){ alert("Message sent!"); });
+       
 This command will send the text message and the object specified in the second parameter. The final message will be something like this:
-     `<message type='chat' to='someone@somewhere.com/MyChat' otherAttr='value' xmlns='jabber:client'><body>Hey dude!</body><error>My custom error</error></message>`
+
+       <message type='chat' to='someone@somewhere.com/MyChat' otherAttr='value' xmlns='jabber:client'>
+       <body>Hey dude!</body><error>My custom error</error></message>
+       
 The second (optional) parameter is useful for notice errors or extra information.
 
 Setting a presence
@@ -120,14 +126,16 @@ Handlers
 -----------
 By default only message, iq and presence commands are captured. If you are using you own message types (when using sendCommand method) you should capture it by modifying the `messageHandler` method
 For example you are using a custom command called "notification". In this case, you need to append following code to messageHandler
-			$.each(response.find("notification"),function(i,element){
-				try{
-					var e = $(element);
-					xmpp.onNotification({from: e.attr("from"), to: e.attr("to"), text: e.find("text").text()});
-				}catch(e){}
-			});
+
+       $.each(response.find("notification"),function(i,element){
+       try{
+           var e = $(element);
+               xmpp.onNotification({from: e.attr("from"), to: e.attr("to"), text: e.find("text").text()});
+           }catch(e){}
+       });
 
 Of course, you need to provide the onNotification event on initialization
+
        $.xmpp.connect({resource:"MyChat", jid:"user@domain.com", password:"qwerty", url:"http://myboshservice.com/http-bind"
        onConnect: function(){
             $.xmpp.setPresence(null);
