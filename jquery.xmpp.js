@@ -300,6 +300,29 @@
 		},
 		
 		/**
+		 * Send a raw command
+		 * @params String Raw command as plain text
+		 * @params callback function callback
+		 */
+		sendCommand: function(rawCommand,callback){
+			var self = this;
+
+			this.rid = this.rid + 1;			
+			this.listening = true;
+			this.connections = this.connections + 1;
+			var command = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'>"+ rawCommand+"</body>";
+			
+			$.post(self.url,command,function(data){
+				self.connections = self.connections - 1;
+				self.messageHandler(data);
+				self.listening = false;
+				self.listen();
+				if(callback != null)
+					callback(data);
+			}, 'text');
+		},
+		
+		/**
 		 * Send a text message
 		 * @params Object
 		 *         {body: "Hey dude!",
@@ -311,7 +334,6 @@
 		 * @params callback: function(){}
 		 */
 		sendMessage: function(options, data, callback){
-			var xmpp = this;
 			var resource;
 			var toJid = options.to;
 			var body = options.body;
@@ -321,9 +343,6 @@
 			else if(this.resource != "")
 				toJid = toJid+"/"+this.resource;
 			
-			xmpp.rid = xmpp.rid + 1;
-			this.listening = true;
-			xmpp.connections = xmpp.connections + 1;
 			//Remove used paramteres
 			delete options.to;
 			delete options.body;
@@ -333,20 +352,13 @@
 			var dataObj = $("<data>");
 			dataObj.append(data);
 			//Add all parameters to the message
-			var messageObj = $("<obj><message type='chat' to='"+toJid+"' xmlns='jabber:client'>body</message></obj>");
+			var messageObj = $("<obj><message type='chat' to='"+toJid+"' xmlns='jabber:client'>bodyCont</message></obj>");
 			messageObj.find("message").attr(options);
 			//Use raw text because jquery "destroy" the body tag
-			var message = messageObj.html().split("body");
+			var message = messageObj.html().split("bodyCont");
 
-			msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><message type='chat' to='"+toJid+"' xmlns='jabber:client'>"+message[0]+"<body>"+body+"</body>"+message[1]+""+dataObj.html()+"</message></body>";
-			$.post(this.url,msg,function(data){
-				xmpp.connections = xmpp.connections - 1;
-				xmpp.messageHandler(data);
-				xmpp.listening = false;
-				xmpp.listen();
-				if(callback != null)
-					callback(data);
-			}, 'text');
+			msg = message[0]+"<body>"+body+"</body>"+dataObj.html()+"</message>";
+			this.sendCommand(msg,callback);
 		},
 		
 		/**
@@ -355,25 +367,16 @@
 		 * @params callback: function(){}
 		 */
 		setPresence: function(type, callback){
-			var xmpp = this;
-			xmpp.rid = xmpp.rid + 1;
-			this.listening = true;
-			xmpp.connections = xmpp.connections + 1;
+
 			if(type == null)
-				msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><presence xmlns='jabber:client'></presence></body>";
+				msg = "<presence xmlns='jabber:client'></presence>";
 			else
-				msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><presence xmlns='jabber:client'><show>"+type+"</show></presence></body>";
-			$.post(this.url,msg,function(data){
-				xmpp.connections = xmpp.connections - 1;
-				xmpp.messageHandler(data);
-				xmpp.listening = false;
-				xmpp.listen();
-				if(callback != null)
-					callback(data);
-			}, 'text');
+				msg = "<presence xmlns='jabber:client'><show>"+type+"</show></presence>";
+			this.sendCommand(msg,callback);
 
 		},
-		isWriting: function(options){
+		/*isWriting: function(options){
+			//TODO
 			var xmpp = this;
 			xmpp.rid = xmpp.rid + 1;
 			this.listening = true;
@@ -389,7 +392,7 @@
 				xmpp.listening = false;
 				xmpp.listen();
 			}, 'text');
-		},
+		},*/
 		messageHandler: function(data, context){
 			var xmpp = this;
 			var response = $(xmpp.fixBody(data));
