@@ -78,7 +78,10 @@
 			$.post(this.url,msg,function(data){
 				var response = $(xmpp.fixBody(data));
 				xmpp.sid = response.attr("sid");
-				if(response.find("mechanism:contains('PLAIN')").length){
+				
+				if(response.find("mechanism:contains('X-FACEBOOK-PLATFORM')").length){
+					xmpp.loginFacebook(options);
+				}else if(response.find("mechanism:contains('PLAIN')").length){
 					xmpp.loginPlain(options);
 				}else if(response.find("mechanism:contains('DIGEST-MD5')").length){
 					xmpp.loginDigestMD5(options);
@@ -226,6 +229,134 @@
 		 */
 		_quote: function(string){
 			return '"'+string+'"';
+		},
+		
+		/**
+		 * Do a X-FACEBOOK-PLATFORM authentication
+		 */
+		loginFacebook: function(options){
+			this.rid++;
+			var split = options.jid.split("@");
+			var user = split[0];
+			var domain = split[1];
+			var xmpp = this;
+			
+			var text = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='X-FACEBOOK-PLATFORM'/></body>";
+			var url = this.url;
+			$.post(this.url,text,function(data){
+				
+				var fb_api_key = '312213208833389';
+				var fb_api_secret= 'd3e899228102462bc1fedb02188a3c5e';
+				var fb_session_key = "$facebook_client->api_client->session_key";
+				
+				//
+				var locationData = window.location.hash.split("&");
+				var token = locationData[0].split("=");
+				token = token[1];
+				var expire = locationData[1].split("=");
+				expire = expire[1];
+				//
+
+				var challenge = Base64.decode($(data).text());
+				console.log(challenge);
+				var challengeFields = challenge.split("&");
+				var vars = {};
+				for(i=0; i<challengeFields.length; i++){
+					var aux = challengeFields[i].split("=");
+					vars[aux[0]] = aux[1];
+				}
+
+				var response =  {
+						'api_key'		: fb_api_key,
+						'call_id'		: 0,
+						'method'		: vars.method,
+						'nonce'			: vars.nonce,
+						'access_token'	: token,
+						'v'           	: '1.0',
+					};
+					
+					//////////////////////////////
+								
+			//Get token
+
+  app_id='312213208833389';
+  app_secret='d3e899228102462bc1fedb02188a3c5e';
+  my_url = "http://jair.lab.fi.uva.es/~alvagar/facebook";
+  uid = 'alvaro.maxpowel';
+  
+    //$code = $_REQUEST["code"];
+	code = "AQDj7e2Gq9T90ug8pVU4KSDJSRBgAnLRu_EtkquKkwme3L5I4yXrDAnKijCSBOBRbathQUSDC-7_OzFSySYI-quOiq8gpIsRuaL3RZa3A4j6jnS5RVYXQHe_VaoZpnQhnkVBDCBr31G0T6o_nWX4cnKcXAF09XI0TyjLJKAZvB4zEhbOQOZkG4Rz9FT68Jo0pdM";
+	if(code == null) {
+		dialog_url = "http://www.facebook.com/dialog/oauth?scope=xmpp_login"+
+		"&client_id=" + app_id + "&redirect_uri=" + my_url ;
+		console.log(dialog_url);
+	}
+   token_url = "https://graph.facebook.com/oauth/access_token?client_id="
+    + app_id + "&redirect_uri=" + my_url
+    + "&client_secret=" + app_secret 
+    + "&code=" + code;
+    $.get(token_url,function(data){
+		var vars = data.split("&");
+		vars = vars[0].split("=");
+		var token = vars[1];
+		console.log(token);
+		//Tenemos el token
+		  $resp_array = array(
+			'method' => $challenge_array['method'],
+			'nonce' => $challenge_array['nonce'],
+			'access_token' => $access_token,
+			'api_key' => $options['app_id'],
+			'call_id' => 0,
+			'v' => '1.0',
+			);
+	});
+	
+	////////////////////////
+			
+	response = jQuery.param(response);
+	response = Base64.encode(response);			
+	       
+	
+
+			var text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+response+"</response></body>";
+
+			$.post(xmpp.url,text,function(ldata){
+					xmpp.rid++;
+					console.log("res");
+					console.log(ldata);
+			}, 'text');
+
+		
+
+
+
+				return;
+				var response = $(xmpp.fixBody(data));
+				if(response.find("success").length)
+				{
+					xmpp.rid++;
+					text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"' to='"+domain+"' xml:lang='en' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'/>";
+					$.post(url,text,function(data){
+						//xmpp.messageHandler(data);
+						xmpp.rid++;
+						text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_bind_auth_2' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'><resource>" + xmpp.resource +"</resource></bind></iq></body>";
+						$.post(url,text,function(data){
+							//xmpp.messageHandler(data);
+							xmpp.rid++;
+							text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
+							$.post(url,text,function(data){
+								if(options.onConnect != null)
+										options.onConnect(data);
+										
+								xmpp.listen();
+							}, 'text');
+						}, 'text');
+					}, 'text');
+				}else{
+					 if(options.onError != null)
+						options.onError({error: "Invalid credentials", data:data});
+				}
+			}, 'text');
 		},
 		/**
 		 * Do a plain authentication
