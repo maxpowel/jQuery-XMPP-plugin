@@ -18,6 +18,7 @@ Password <input type="password" id="pass">
 <br>
 <button id="connectBut">Connect</button>
 <button id="disconnectBut">Disconnect</button>
+<button id="rosterBut">Get roster</button>
 <br>
 <div id="log">
 </div>
@@ -25,6 +26,16 @@ Password <input type="password" id="pass">
 <script>
 
 $(document).ready(function(){
+	$("#rosterBut").click(function(){
+		if($.xmpp.isConnected()){
+			$.xmpp.getRoster(function(roster){
+				console.log(roster);
+			});
+		}else{
+			alert("You are not connected");
+		}
+	});
+	
 	$("#connectBut").click(function(){
 		var jid = $("#jid").val();
 		var password = $("#pass").val();

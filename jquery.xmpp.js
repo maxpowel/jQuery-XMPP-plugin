@@ -25,6 +25,7 @@
 	sid:null,
 	jid:null,
 	url: null,
+	uri: null,
 	listening: false,
 	onMessage: null,
 	onIq: null,
@@ -32,6 +33,7 @@
 	onError: null,
 	connections: 0,
 	resource: null,
+	connected: false,
 	/**
 	 * Connect to the server
 	 * @params Object 
@@ -59,11 +61,15 @@
 			else
 				this.url = options.url;
 				
+			this.uri = this.jid;
 			var resource;
 			if(options.resource == null)
 				this.resource = "";
-			else
+			else{
 				this.resource = options.resource;
+				this.uri += "/" + this.resource;
+			}
+				
 			
 			//Events
 			this.onMessage = options.onMessage;
@@ -115,6 +121,7 @@
 					callback(data);
 					
 				if(xmpp.onDisconnect != null)
+					xmpp.connected = false;
 					xmpp.onDisconnect(data);
 				
 			}, 'text');
@@ -203,6 +210,7 @@
 								var response = $(xmpp.fixBody(data));
 								if(response.find("success").length){
 									if(xmpp.onConnect != null)
+										xmpp.connected = true;
 										xmpp.onConnect(data);
 											
 									xmpp.listen();
@@ -233,6 +241,8 @@
 		
 		/**
 		 * Do a X-FACEBOOK-PLATFORM authentication
+		 * Still under development. I am thinking about 
+		 * a friendly way to get facebook permissions
 		 */
 		loginFacebook: function(options){
 			this.rid++;
@@ -279,58 +289,58 @@
 								
 			//Get token
 
-  app_id='312213208833389';
-  app_secret='d3e899228102462bc1fedb02188a3c5e';
-  my_url = "http://jair.lab.fi.uva.es/~alvagar/facebook";
-  uid = 'alvaro.maxpowel';
-  
-    //$code = $_REQUEST["code"];
-	code = "AQDj7e2Gq9T90ug8pVU4KSDJSRBgAnLRu_EtkquKkwme3L5I4yXrDAnKijCSBOBRbathQUSDC-7_OzFSySYI-quOiq8gpIsRuaL3RZa3A4j6jnS5RVYXQHe_VaoZpnQhnkVBDCBr31G0T6o_nWX4cnKcXAF09XI0TyjLJKAZvB4zEhbOQOZkG4Rz9FT68Jo0pdM";
-	if(code == null) {
-		dialog_url = "http://www.facebook.com/dialog/oauth?scope=xmpp_login"+
-		"&client_id=" + app_id + "&redirect_uri=" + my_url ;
-		console.log(dialog_url);
-	}
-   token_url = "https://graph.facebook.com/oauth/access_token?client_id="
-    + app_id + "&redirect_uri=" + my_url
-    + "&client_secret=" + app_secret 
-    + "&code=" + code;
-    $.get(token_url,function(data){
-		var vars = data.split("&");
-		vars = vars[0].split("=");
-		var token = vars[1];
-		console.log(token);
-		//Tenemos el token
-		  $resp_array = array(
-			'method' => $challenge_array['method'],
-			'nonce' => $challenge_array['nonce'],
-			'access_token' => $access_token,
-			'api_key' => $options['app_id'],
-			'call_id' => 0,
-			'v' => '1.0',
-			);
-	});
-	
-	////////////////////////
+		  app_id='312213208833389';
+		  app_secret='d3e899228102462bc1fedb02188a3c5e';
+		  my_url = "http://jair.lab.fi.uva.es/~alvagar/facebook";
+		  uid = 'alvaro.maxpowel';
+		  
+			//$code = $_REQUEST["code"];
+			code = "AQDj7e2Gq9T90ug8pVU4KSDJSRBgAnLRu_EtkquKkwme3L5I4yXrDAnKijCSBOBRbathQUSDC-7_OzFSySYI-quOiq8gpIsRuaL3RZa3A4j6jnS5RVYXQHe_VaoZpnQhnkVBDCBr31G0T6o_nWX4cnKcXAF09XI0TyjLJKAZvB4zEhbOQOZkG4Rz9FT68Jo0pdM";
+			if(code == null) {
+				dialog_url = "http://www.facebook.com/dialog/oauth?scope=xmpp_login"+
+				"&client_id=" + app_id + "&redirect_uri=" + my_url ;
+				console.log(dialog_url);
+			}
+		   token_url = "https://graph.facebook.com/oauth/access_token?client_id="
+			+ app_id + "&redirect_uri=" + my_url
+			+ "&client_secret=" + app_secret 
+			+ "&code=" + code;
+			$.get(token_url,function(data){
+				var vars = data.split("&");
+				vars = vars[0].split("=");
+				var token = vars[1];
+				console.log(token);
+				//Tenemos el token
+				  /*$resp_array = array(
+					'method' => $challenge_array['method'],
+					'nonce' => $challenge_array['nonce'],
+					'access_token' => $access_token,
+					'api_key' => $options['app_id'],
+					'call_id' => 0,
+					'v' => '1.0',
+					);*/
+			});
 			
-	response = jQuery.param(response);
-	response = Base64.encode(response);			
-	       
-	
+			////////////////////////
+					
+			response = jQuery.param(response);
+			response = Base64.encode(response);			
+				   
+			
 
-			var text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+response+"</response></body>";
+					var text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+response+"</response></body>";
 
-			$.post(xmpp.url,text,function(ldata){
-					xmpp.rid++;
-					console.log("res");
-					console.log(ldata);
-			}, 'text');
+					$.post(xmpp.url,text,function(ldata){
+							xmpp.rid++;
+							console.log("res");
+							console.log(ldata);
+					}, 'text');
 
-		
+				
 
 
 
-				return;
+						return;
 				var response = $(xmpp.fixBody(data));
 				if(response.find("success").length)
 				{
@@ -346,6 +356,7 @@
 							text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
 							$.post(url,text,function(data){
 								if(options.onConnect != null)
+										xmpp.connected = true;
 										options.onConnect(data);
 										
 								xmpp.listen();
@@ -385,6 +396,7 @@
 							text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
 							$.post(url,text,function(data){
 								if(options.onConnect != null)
+										xmpp.connected = true;
 										options.onConnect(data);
 										
 								xmpp.listen();
@@ -506,6 +518,28 @@
 			this.sendCommand(msg,callback);
 
 		},
+		
+		/**
+		 * Get if you are connected
+		 */
+		 isConnected: function(){
+			 return this.connected;
+		 },
+		 
+		/**
+		 * Do a roster request
+		 */
+		 getRoster: function(callback){
+			msg = "<iq type='get'><query xmlns='jabber:iq:roster'/></iq>";
+			this.sendCommand(msg,function(data){
+				var roster = [];
+				$.each($(data).find("item"), function(i,item){
+					var jItem = $(item);
+					roster.push({name: jItem.attr("name"), subscription: jItem.attr("subscription"), jid: jItem.attr("jid")});
+				});
+				callback(roster);
+			}); 
+		 },
 		/*isWriting: function(options){
 			//TODO
 			var xmpp = this;
