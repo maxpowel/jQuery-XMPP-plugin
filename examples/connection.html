@@ -1,76 +1,66 @@
 <html>
 	<head>
 		<title>Basic connection</title>
-	</head>
-
-<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
-
-
-<script type="text/javascript" src="https://raw.github.com/maxpowel/jQuery-XMPP-plugin/master/jquery.xmpp.js"></script>
-
-
-<body>
-This example just connect notify when connected and show the connected contacts.
-<br>
-Jid <input type="text" id="jid"> (ej: maxpowel@gmail.com, alvaro.maxpowel@chat.facebook.com)
-<br>
-Password <input type="password" id="pass">
-<br>
-<button id="connectBut">Connect</button>
-<button id="disconnectBut">Disconnect</button>
-<button id="rosterBut">Get roster</button>
-<br>
-<div id="log">
-</div>
-</body>
-<script>
-
-$(document).ready(function(){
-	$("#rosterBut").click(function(){
-		if($.xmpp.isConnected()){
-			$.xmpp.getRoster(function(roster){
-				console.log(roster);
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+		<script type="text/javascript" src="https://raw.github.com/Marko-M/jQuery-XMPP-plugin/master/jquery.xmpp.js"></script>		
+		<script type="text/javascript" >
+		$(document).ready(function(){
+			$("#rosterBut").click(function(){
+				if($.xmpp.isConnected()){
+					$.xmpp.getRoster(function(roster){
+						console.log(roster);
+					});
+				}else{
+					alert("You are not connected");
+				}
 			});
-		}else{
-			alert("You are not connected");
-		}
-	});
-	
-	$("#connectBut").click(function(){
-		var jid = $("#jid").val();
-		var password = $("#pass").val();
-		var logContainer = $("#log");
-		
-		//An example of bosh server url. This site is working but it can change or go down.
-		//If you are going to have a production site, you must install your own BOSH server
-		var url ="http://bosh.metajack.im:5280/xmpp-httpbind";
-		$.xmpp.connect({url:url, jid: jid, password: password,
-			onConnect: function(){
-				logContainer.append("<div>Connected</div>");
-				$.xmpp.setPresence(null, function(){
-					logContainer.append("<div>Presence changed to online</div>");
-				});
-			},
-			onPresence: function(presence){
-				logContainer.append("<div>New presence: "+ presence.from +"</div>");
-			},
-			onDisconnect: function(){
-				logContainer.append("<div>Disconnected...</div>");
-			},
-			onError: function(error){
-				logContainer.append("<div>Error: "+ error.error +"</div>");
-			}
-		});		
-	});
-	
-	$("#disconnectBut").click(function(){
-		$.xmpp.disconnect();
-	});
-	
-});
-
-
-
-</script>
-
+			
+			$("#connectBut").click(function(){
+				var jid = $("#jid").val();
+				var password = $("#pass").val();
+				var logContainer = $("#log");
+				
+				//An example of bosh server url. This site is working but it can change or go down.
+				//If you are going to have a production site, you must install your own BOSH server
+				var url ="http://bosh.metajack.im:5280/xmpp-httpbind";
+				$.xmpp.connect({url:url, jid: jid, password: password,
+					onConnect: function(){
+						logContainer.append("<div>Connected</div>");
+						$.xmpp.setPresence(null, function(){
+							logContainer.append("<div>Presence changed to online</div>");
+						});
+					},
+					onPresence: function(presence){
+						logContainer.append("<div>New presence: "+ presence.from +"</div>");
+					},
+					onDisconnect: function(){
+						logContainer.append("<div>Disconnected...</div>");
+					},
+					onError: function(error){
+						logContainer.append("<div>Error: "+ error.error +"</div>");
+					}
+				});		
+			});
+			
+			$("#disconnectBut").click(function(){
+				$.xmpp.disconnect();
+			});
+			
+		});
+		</script>		
+	</head>
+	<body>
+		This example just connect notify when connected and show the connected contacts.
+		<br>
+		Jid <input type="text" id="jid"> (ej: maxpowel@gmail.com, alvaro.maxpowel@chat.facebook.com)
+		<br>
+		Password <input type="password" id="pass">
+		<br>
+		<button id="connectBut">Connect</button>
+		<button id="disconnectBut">Disconnect</button>
+		<button id="rosterBut">Get roster</button>
+		<br>
+		<div id="log">
+		</div>
+	</body>
 </html>
