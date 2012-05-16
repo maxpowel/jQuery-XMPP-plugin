@@ -1,18 +1,18 @@
 /*
  *      jquery.xmpp.js
- *      
+ *
  *      Copyright 2011 Alvaro Garcia <maxpowel@gmail.com>
- *      
+ *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
  *      the Free Software Foundation; either version 3 of the License, or
  *      (at your option) any later version.
- *      
+ *
  *      This program is distributed in the hope that it will be useful,
  *      but WITHOUT ANY WARRANTY; without even the implied warranty of
  *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *      GNU General Public License for more details.
- *      
+ *
  *      You should have received a copy of the GNU General Public License
  *      along with this program; if not, write to the Free Software
  *      Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -20,597 +20,485 @@
  */
 
 (function($) {
-	$.xmpp = {
-	rid:null,
-	sid:null,
-	jid:null,
-	url: null,
-	uri: null,
-	listening: false,
-	onMessage: null,
-	onIq: null,
-	onPresence: null,
-	onError: null,
-	connections: 0,
-	resource: null,
-	connected: false,
-	/**
-	 * Connect to the server
-	 * @params Object 
-	 *        {jid:"user@domain.com",
-	 *          password:"qwerty",
-	 * 			resource:"Chat",
-	 *          onDisconnect:function(){},
-	 *          onConnect: function(data){},
-	 *          onIq: function(iq){},
-     *          onMessage: function(message){},
-     *          onPresence: function(presence){}
-     * 			onError: function(error, data){}
-     *         }
-	 */
-		connect: function(options){
-			//Generate a random number. You can use your own generator
-			this.rid = Math.round(Math.random()*Math.pow(10,10));
-			//
-			this.jid = options.jid;
-			var split = options.jid.split("@");
-			var domain = split[1];
-			var xmpp = this;
-			if(options.url == null)
-				this.url = '/http-bind'
-			else
-				this.url = options.url;
-				
-			this.uri = this.jid;
-			var resource;
-			if(options.resource == null)
-				this.resource = "";
-			else{
-				this.resource = options.resource;
-				this.uri += "/" + this.resource;
-			}
-				
-			
-			//Events
-			this.onMessage = options.onMessage;
-			this.onIq = options.onIq;
-			this.onPresence = options.onPresence;
-			this.onError = options.onError;
-			this.onDisconnect = options.onDisconnect;
-			this.onConnect = options.onConnect;
-			
-			//Init connection
-			var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='60' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
-			$.post(this.url,msg,function(data){
-				var response = $(xmpp.fixBody(data));
-				xmpp.sid = response.attr("sid");
-				
-				if(response.find("mechanism:contains('X-FACEBOOK-PLATFORM')").length){
-					xmpp.loginFacebook(options);
-				}else if(response.find("mechanism:contains('PLAIN')").length){
-					xmpp.loginPlain(options);
-				}else if(response.find("mechanism:contains('DIGEST-MD5')").length){
-					xmpp.loginDigestMD5(options);
-				}else{
-					if(xmpp.onError != null){
-							xmpp.onError({error:"No auth method supported", data:data});
-					}
-					
-				} 
-			}, 'text');
-		},
-		
-		/**
-		* Disconnect from the server
-		* @params function callback
-		*/
-		disconnect: function(callback){
-			var xmpp = this;
-			xmpp.rid = xmpp.rid + 1;
-			this.listening = true;
-			xmpp.connections = xmpp.connections + 1;
-			var msg = "<body rid='"+ this.rid +"' xmlns='http://jabber.org/protocol/httpbind' sid='"+ this.sid +"' type='terminate'><presence xmlns='jabber:client' type='unavailable'/></body>";
-			$.post(this.url,msg,function(data){
-				xmpp.connections = xmpp.connections - 1;
-				xmpp.messageHandler(data);
-				xmpp.listening = false;
-				//Do not listen anymore!
-				
-				//Two callbacks
-				if(callback != null)
-					callback(data);
-					
-				if(xmpp.onDisconnect != null)
-					xmpp.connected = false;
-					xmpp.onDisconnect(data);
-				
-			}, 'text');
-		},
-		
-		loginDigestMD5: function(options){
-			
-			var xmpp = this;
-			this.rid++;
-			var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='DIGEST-MD5'/></body>";
-			$.post(this.url,msg,function(data){
-				var response = $(data);
+    $.xmpp ={
+        rid:null,
+        sid:null,
+        jid:null,
+        url: null,
+        uri: null,
+        listening: false,
+        onMessage: null,
+        onIq: null,
+        onPresence: null,
+        onError: null,
+        connections: 0,
+        resource: null,
+        connected: false,
+        
+        /**
+        * Connect to the server
+        * @params Object
+        * {jid:"user@domain.com",
+        * password:"qwerty",
+        * resource:"Chat",
+        * url:"/http-bind",
+        * onDisconnect:function(){},
+        * onConnect: function(data){},
+        * onIq: function(iq){},
+        * onMessage: function(message){},
+        * onPresence: function(presence){}
+        * onError: function(error, data){}
+        * }
+        */
+        connect: function(options){
+            this.rid = Math.round(Math.random()*Math.pow(10,10));
+            this.jid = options.jid;
+            var split = options.jid.split("@");
+            var domain = split[1];
+            var xmpp = this;
+            if(options.url == null)
+                this.url = '/http-bind'
+            else
+                this.url = options.url;
 
-				var split = options.jid.split("@");
-				var domain = split[1];
-				var username = split[0];
-				
-				//Code bases on Strophe
-				var attribMatch = /([a-z]+)=("[^"]+"|[^,"]+)(?:,|$)/;
+            this.uri = this.jid;
+            if(options.resource == null)
+                this.resource = "";
+            else{
+                this.resource = options.resource;
+                this.uri += "/" + this.resource;
+            }
 
-				var challenge = Base64.decode(response.text());
-				
-				var cnonce = MD5.hexdigest("" + (Math.random() * 1234567890));
-				var realm = "";
-				var host = null;
-				var nonce = "";
-				var qop = "";
-				var matches;
+            //Events
+            this.onMessage = options.onMessage;
+            this.onIq = options.onIq;
+            this.onPresence = options.onPresence;
+            this.onError = options.onError;
+            this.onDisconnect = options.onDisconnect;
+            this.onConnect = options.onConnect;
 
-				while (challenge.match(attribMatch)) {
-					matches = challenge.match(attribMatch);
-					challenge = challenge.replace(matches[0], "");
-					matches[2] = matches[2].replace(/^"(.+)"$/, "$1");
-					switch (matches[1]) {
-					case "realm":
-						realm = matches[2];
-						break;
-					case "nonce":
-						nonce = matches[2];
-						break;
-					case "qop":
-						qop = matches[2];
-						break;
-					case "host":
-						host = matches[2];
-						break;
-					}
-				}
+            //Init connection
+            var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='60' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
+            $.post(this.url,msg,function(data){
+                var response = $(xmpp.fixBody(data));
+                xmpp.sid = response.attr("sid");
 
-				var digest_uri = "xmpp/" + domain;
-				if (host !== null) {
-					digest_uri = digest_uri + "/" + host;
-				}
-				
-				var A1 = MD5.hash(username +
-								  ":" + realm + ":" + options.password) +
-					":" + nonce + ":" + cnonce;
-				var A2 = 'AUTHENTICATE:' + digest_uri;
+                if(response.find("mechanism:contains('PLAIN')").length){
+                    xmpp.loginPlain(options);
+                }else if(response.find("mechanism:contains('DIGEST-MD5')").length){
+                    xmpp.loginDigestMD5(options);
+                }else{
+                    if(xmpp.onError != null){
+                        xmpp.onError({error:"No auth method supported", data:data});
+                    }
 
-				var responseText = "";
-				responseText += 'username=' +
-					xmpp._quote(username) + ',';
-				responseText += 'realm=' + xmpp._quote(realm) + ',';
-				responseText += 'nonce=' + xmpp._quote(nonce) + ',';
-				responseText += 'cnonce=' + xmpp._quote(cnonce) + ',';
-				responseText += 'nc="00000001",';
-				responseText += 'qop="auth",';
-				responseText += 'digest-uri=' + xmpp._quote(digest_uri) + ',';
-				responseText += 'response=' + xmpp._quote(
-					MD5.hexdigest(MD5.hexdigest(A1) + ":" +
-								  nonce + ":00000001:" +
-								  cnonce + ":auth:" +
-								  MD5.hexdigest(A2))) + ',';
-				responseText += 'charset="utf-8"';
-				//
-				//Try o authenticate
-				xmpp.rid++;
-				var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+Base64.encode(responseText)+"</response></body>";
-				$.post(this.url,msg,function(data){
-						var response = $(xmpp.fixBody(data));
-						if(!response.find("failure").length)
-						{
-							xmpp.rid++;
-							var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/></body>";
-							$.post(this.url,msg,function(data){
-								var response = $(xmpp.fixBody(data));
-								if(response.find("success").length){
-									if(xmpp.onConnect != null)
-										xmpp.connected = true;
-										xmpp.onConnect(data);
-											
-									xmpp.listen();
-								}else{
-									if(xmpp.onError != null)
-									xmpp.onError({error: "Invalid credentials", data:data});
-								}
-						
-						
-							}, 'text');
-					}else{
-							if(xmpp.onError != null)
-								xmpp.onError({error: "Invalid credentials", data:data});
-					}
-				}, 'text');
-				
-			}, 'text');
-		},
-		
-		/**
-		 * Returns the quoted string
-		 * @prams string
-		 * @return quoted string
-		 */
-		_quote: function(string){
-			return '"'+string+'"';
-		},
-		
-		/**
-		 * Do a X-FACEBOOK-PLATFORM authentication
-		 * Still under development. I am thinking about 
-		 * a friendly way to get facebook permissions
-		 */
-		loginFacebook: function(options){
-			this.rid++;
-			var split = options.jid.split("@");
-			var user = split[0];
-			var domain = split[1];
-			var xmpp = this;
-			
-			var text = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='X-FACEBOOK-PLATFORM'/></body>";
-			var url = this.url;
-			$.post(this.url,text,function(data){
-				
-				var fb_api_key = '312213208833389';
-				var fb_api_secret= 'd3e899228102462bc1fedb02188a3c5e';
-				var fb_session_key = "$facebook_client->api_client->session_key";
-				
-				//
-				var locationData = window.location.hash.split("&");
-				var token = locationData[0].split("=");
-				token = token[1];
-				var expire = locationData[1].split("=");
-				expire = expire[1];
-				//
+                }
+            }, 'text');
+        },
+        
+        /**
+        * Attach to existing session
+        * @params Object
+        * {jid:"",
+        * sid:"",
+        * rid:"",
+        * resource:"",
+        * url:"",
+        * onDisconnect:function(){},
+        * onConnect: function(data){},
+        * onIq: function(iq){},
+        * onMessage: function(message){},
+        * onPresence: function(presence){}
+        * onError: function(error, data){}
+        * }
+        */
+        attach: function(options){
+            this.jid = options.jid;
+            this.sid = options.sid;
+            this.rid = options.rid;
 
-				var challenge = Base64.decode($(data).text());
-				console.log(challenge);
-				var challengeFields = challenge.split("&");
-				var vars = {};
-				for(i=0; i<challengeFields.length; i++){
-					var aux = challengeFields[i].split("=");
-					vars[aux[0]] = aux[1];
-				}
+            var xmpp = this;
+            if(options.url == null)
+                this.url = '/http-bind'
+            else
+                this.url = options.url;
 
-				var response =  {
-						'api_key'		: fb_api_key,
-						'call_id'		: 0,
-						'method'		: vars.method,
-						'nonce'			: vars.nonce,
-						'access_token'	: token,
-						'v'           	: '1.0',
-					};
-					
-					//////////////////////////////
-								
-			//Get token
+            this.uri = this.jid;
+            if(options.resource == null)
+                this.resource = "";
+            else{
+                this.resource = options.resource;
+                this.uri += "/" + this.resource;
+            }
 
-		  app_id='312213208833389';
-		  app_secret='d3e899228102462bc1fedb02188a3c5e';
-		  my_url = "http://jair.lab.fi.uva.es/~alvagar/facebook";
-		  uid = 'alvaro.maxpowel';
-		  
-			//$code = $_REQUEST["code"];
-			code = "AQDj7e2Gq9T90ug8pVU4KSDJSRBgAnLRu_EtkquKkwme3L5I4yXrDAnKijCSBOBRbathQUSDC-7_OzFSySYI-quOiq8gpIsRuaL3RZa3A4j6jnS5RVYXQHe_VaoZpnQhnkVBDCBr31G0T6o_nWX4cnKcXAF09XI0TyjLJKAZvB4zEhbOQOZkG4Rz9FT68Jo0pdM";
-			if(code == null) {
-				dialog_url = "http://www.facebook.com/dialog/oauth?scope=xmpp_login"+
-				"&client_id=" + app_id + "&redirect_uri=" + my_url ;
-				console.log(dialog_url);
-			}
-		   token_url = "https://graph.facebook.com/oauth/access_token?client_id="
-			+ app_id + "&redirect_uri=" + my_url
-			+ "&client_secret=" + app_secret 
-			+ "&code=" + code;
-			$.get(token_url,function(data){
-				var vars = data.split("&");
-				vars = vars[0].split("=");
-				var token = vars[1];
-				console.log(token);
-				//Tenemos el token
-				  /*$resp_array = array(
-					'method' => $challenge_array['method'],
-					'nonce' => $challenge_array['nonce'],
-					'access_token' => $access_token,
-					'api_key' => $options['app_id'],
-					'call_id' => 0,
-					'v' => '1.0',
-					);*/
-			});
-			
-			////////////////////////
-					
-			response = jQuery.param(response);
-			response = Base64.encode(response);			
-				   
-			
+            //Events
+            this.onMessage = options.onMessage;
+            this.onIq = options.onIq;
+            this.onPresence = options.onPresence;
+            this.onError = options.onError;
+            this.onDisconnect = options.onDisconnect;
+            this.onConnect = options.onConnect;
 
-					var text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+response+"</response></body>";
+            if(options.onConnect != null)
+                xmpp.connected = true;
 
-					$.post(xmpp.url,text,function(ldata){
-							xmpp.rid++;
-							console.log("res");
-							console.log(ldata);
-					}, 'text');
+            options.onConnect();
+            xmpp.listen();
+        },
 
-				
+        /**
+        * Disconnect from the server
+        * @params function callback
+        */
+        disconnect: function(callback){
+            var xmpp = this;
+            xmpp.rid = xmpp.rid + 1;
+            this.listening = true;
+            xmpp.connections = xmpp.connections + 1;
+            var msg = "<body rid='"+ this.rid +"' xmlns='http://jabber.org/protocol/httpbind' sid='"+ this.sid +"' type='terminate'><presence xmlns='jabber:client' type='unavailable'/></body>";
+            $.post(this.url,msg,function(data){
+                xmpp.connections = xmpp.connections - 1;
+                xmpp.messageHandler(data);
+                xmpp.listening = false;
+                //Do not listen anymore!
 
+                //Two callbacks
+                if(callback != null)
+                    callback(data);
 
+                if(xmpp.onDisconnect != null)
+                    xmpp.connected = false;
+                    xmpp.onDisconnect(data);
 
-						return;
-				var response = $(xmpp.fixBody(data));
-				if(response.find("success").length)
-				{
-					xmpp.rid++;
-					text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"' to='"+domain+"' xml:lang='en' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'/>";
-					$.post(url,text,function(data){
-						//xmpp.messageHandler(data);
-						xmpp.rid++;
-						text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_bind_auth_2' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'><resource>" + xmpp.resource +"</resource></bind></iq></body>";
-						$.post(url,text,function(data){
-							//xmpp.messageHandler(data);
-							xmpp.rid++;
-							text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
-							$.post(url,text,function(data){
-								if(options.onConnect != null)
-										xmpp.connected = true;
-										options.onConnect(data);
-										
-								xmpp.listen();
-							}, 'text');
-						}, 'text');
-					}, 'text');
-				}else{
-					 if(options.onError != null)
-						options.onError({error: "Invalid credentials", data:data});
-				}
-			}, 'text');
-		},
-		/**
-		 * Do a plain authentication
-		 */
-		loginPlain: function(options){
-			this.rid++;
-			var split = options.jid.split("@");
-			var user = split[0];
-			var domain = split[1];
-			var xmpp = this;
-			var text = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>"+Base64.encode(this.jid+"\u0000"+user+"\u0000"+options.password)+"</auth></body>";
-			var url = this.url;
-			$.post(this.url,text,function(data){
-				var response = $(xmpp.fixBody(data));
-				if(response.find("success").length)
-				{
-					xmpp.rid++;
-					text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"' to='"+domain+"' xml:lang='en' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'/>";
-					$.post(url,text,function(data){
-						//xmpp.messageHandler(data);
-						xmpp.rid++;
-						text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_bind_auth_2' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'><resource>" + xmpp.resource +"</resource></bind></iq></body>";
-						$.post(url,text,function(data){
-							//xmpp.messageHandler(data);
-							xmpp.rid++;
-							text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
-							$.post(url,text,function(data){
-								if(options.onConnect != null)
-										xmpp.connected = true;
-										options.onConnect(data);
-										
-								xmpp.listen();
-							}, 'text');
-						}, 'text');
-					}, 'text');
-				}else{
-					 if(options.onError != null)
-						options.onError({error: "Invalid credentials", data:data});
-				}
-			}, 'text');
-		},
-		
-		/**
-		 * Wait for a new event
-		 */
-		listen: function(){
-			var xmpp = this;
-			if(!this.listening){
-				this.listening = true;	
-				var xmpp = this;
-				if(xmpp.connections == 0)
-				{
-					this.rid = this.rid+1;
-					xmpp.connections = xmpp.connections + 1;
-					$.post(this.url,"<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",
-							function(data)
-							{
-								xmpp.connections = xmpp.connections - 1;
-								xmpp.listening = false;
-								var body = $(xmpp.fixBody(data));
-								//When timeout the connections are 0
-								//When listener is aborted because you send message (or something)
-								// the body children are 0 but connections are > 0
-								if(body.children().length > 0 && xmpp.connections == 0)
-								{
-									xmpp.messageHandler(data);
-									xmpp.listen();
-								}
-							}, 'text');
-				}
-			}
+            }, 'text');
+        },
+        /**
+        * Do a MD5 Digest authentication
+        */
+        loginDigestMD5: function(options){
+            var xmpp = this;
+            this.rid++;
+            var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='DIGEST-MD5'/></body>";
+            $.post(this.url,msg,function(data){
+                var response = $(data);
 
-		},
-		
-		/**
-		 * Send a raw command
-		 * @params String Raw command as plain text
-		 * @params callback function callback
-		 */
-		sendCommand: function(rawCommand,callback){
-			var self = this;
+                var split = options.jid.split("@");
+                var domain = split[1];
+                var username = split[0];
 
-			this.rid = this.rid + 1;			
-			this.listening = true;
-			this.connections = this.connections + 1;
-			var command = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'>"+ rawCommand+"</body>";
-			
-			$.post(self.url,command,function(data){
-				self.connections = self.connections - 1;
-				self.messageHandler(data);
-				self.listening = false;
-				self.listen();
-				if(callback != null)
-					callback(data);
-			}, 'text');
-		},
-		
-		/**
-		 * Send a text message
-		 * @params Object
-		 *         {body: "Hey dude!",
-		 * 			to: "someone@somewhere.com"
-		 * 			resource: "Chat",
-		 *          otherAttr: "value"
-		 * 			}
-		 * @params data: Extra information such errors
-		 * @params callback: function(){}
-		 */
-		sendMessage: function(options, data, callback){
-			var resource;
-			var toJid = options.to;
-			var body = options.body;
-			
-			if(options.resource != null)
-				toJid = toJid+"/"+options.resource;
-			else if(this.resource != "")
-				toJid = toJid+"/"+this.resource;
-			
-			//Remove used paramteres
-			delete options.to;
-			delete options.body;
-			delete options.resource;
-			
-			//Other data
-			var dataObj = $("<data>");
-			dataObj.append(data);
-			//Add all parameters to the message
-			var messageObj = $("<obj><message type='chat' to='"+toJid+"' xmlns='jabber:client'>bodyCont</message></obj>");
-			messageObj.find("message").attr(options);
-			//Use raw text because jquery "destroy" the body tag
-			var message = messageObj.html().split("bodyCont");
+                //Code bases on Strophe
+                var attribMatch = /([a-z]+)=("[^"]+"|[^,"]+)(?:,|$)/;
 
-			msg = message[0]+"<body>"+body+"</body>"+dataObj.html()+"</message>";
-			this.sendCommand(msg,callback);
-		},
-		
-		/**
-		 * Change the presence
-		 * @params String The common presences are: null, away, dnd
-		 * @params callback: function(){}
-		 */
-		setPresence: function(type, callback){
+                var challenge = Base64.decode(response.text());
 
-			if(type == null)
-				msg = "<presence xmlns='jabber:client'></presence>";
-			else
-				msg = "<presence xmlns='jabber:client'><show>"+type+"</show></presence>";
-			this.sendCommand(msg,callback);
+                var cnonce = MD5.hexdigest("" + (Math.random() * 1234567890));
+                var realm = "";
+                var host = null;
+                var nonce = "";
+                var qop = "";
+                var matches;
 
-		},
-		
-		/**
-		 * Get if you are connected
-		 */
-		 isConnected: function(){
-			 return this.connected;
-		 },
-		 
-		/**
-		 * Do a roster request
-		 */
-		 getRoster: function(callback){
-			msg = "<iq type='get'><query xmlns='jabber:iq:roster'/></iq>";
-			this.sendCommand(msg,function(data){
-				var roster = [];
-				$.each($(data).find("item"), function(i,item){
-					var jItem = $(item);
-					roster.push({name: jItem.attr("name"), subscription: jItem.attr("subscription"), jid: jItem.attr("jid")});
-				});
-				callback(roster);
-			}); 
-		 },
-		/*isWriting: function(options){
-			//TODO
-			var xmpp = this;
-			xmpp.rid = xmpp.rid + 1;
-			this.listening = true;
-			xmpp.connections = xmpp.connections + 1;
-			if(options.isWriting)
-				msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><message type='chat' to='"+options.to+"/Wixet' from='"+xmpp.jid+"/Wixet'><x xmlns='jabber:x:event'><composing/></x><composing xmlns='http://jabber.org/protocol/chatstates'/></message></body>";
-			else
-				msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><message type='chat' to='"+options.to+"/Wixet' from='"+xmpp.jid+"/Wixet'><x xmlns='jabber:x:event'/><active xmlns='http://jabber.org/protocol/chatstates'/></message></body>";
-			
-			$.post(this.url,msg,function(data){
-				xmpp.connections = xmpp.connections - 1;
-				xmpp.messageHandler(data);
-				xmpp.listening = false;
-				xmpp.listen();
-			}, 'text');
-		},*/
-		messageHandler: function(data, context){
-			var xmpp = this;
-			var response = $(xmpp.fixBody(data));
-			
-			
-			$.each(response.find("message"),function(i,element){
-				try{
-					var e = $(element);
-					xmpp.onMessage({from: e.attr("from"), body: e.find(".body").html(),attributes:e[0].attributes,data:response.children()});
-				}catch(e){}
-			});
-			
-			$.each(response.find("iq"),function(i,element){
-				try{
-					xmpp.onIq(element);
-				}catch(e){}
-			});
-			
-			$.each(response.find("presence"),function(i,element){
-				try{
-					var e = $(element);
-					xmpp.onPresence({from: e.attr("from"), to: e.attr("to"), show: e.find("show").html()});
-				}catch(e){}
-			});
-		},
-		
-		/**
-		 * Replaces <body> tags because jquery does not "parse" this tag
-		 * @params String
-		 * @return String
-		 */
-		fixBody: function(html){
-			    html = html.replace(/<\/body>/ig, "</div>")
-				html = html.replace(/<body/ig, "<div class='body'")
-				return html;
-		}
-	}
-	
+                while (challenge.match(attribMatch)) {
+                    matches = challenge.match(attribMatch);
+                    challenge = challenge.replace(matches[0], "");
+                    matches[2] = matches[2].replace(/^"(.+)"$/, "$1");
+                    switch (matches[1]) {
+                    case "realm":
+                            realm = matches[2];
+                            break;
+                    case "nonce":
+                            nonce = matches[2];
+                            break;
+                    case "qop":
+                            qop = matches[2];
+                            break;
+                    case "host":
+                            host = matches[2];
+                            break;
+                    }
+                }
 
+                var digest_uri = "xmpp/" + domain;
+                if (host !== null) {
+                    digest_uri = digest_uri + "/" + host;
+                }
+
+                var A1 = MD5.hash(username + ":" + realm + ":" + options.password) +
+                        ":" + nonce + ":" + cnonce;
+
+                var A2 = 'AUTHENTICATE:' + digest_uri;
+
+                var responseText = "";
+                responseText += 'username=' + xmpp._quote(username) + ',';
+                responseText += 'realm=' + xmpp._quote(realm) + ',';
+                responseText += 'nonce=' + xmpp._quote(nonce) + ',';
+                responseText += 'cnonce=' + xmpp._quote(cnonce) + ',';
+                responseText += 'nc="00000001",';
+                responseText += 'qop="auth",';
+                responseText += 'digest-uri=' + xmpp._quote(digest_uri) + ',';
+                responseText += 'response=' + xmpp._quote(
+                MD5.hexdigest(MD5.hexdigest(A1) + ":" +
+                                            nonce + ":00000001:" +
+                                            cnonce + ":auth:" +
+                                            MD5.hexdigest(A2))) + ',';
+                responseText += 'charset="utf-8"';
+
+                xmpp.rid++;
+                var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"+Base64.encode(responseText)+"</response></body>";
+                $.post(this.url,msg,function(data){
+                    var response = $(xmpp.fixBody(data));
+                    if(!response.find("failure").length){
+                        xmpp.rid++;
+                        var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/></body>";
+                        $.post(this.url,msg,function(data){
+                            var response = $(xmpp.fixBody(data));
+                            if(response.find("success").length){
+                                xmpp.rid++;
+                                var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"' to='"+domain+"' xml:lang='en' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'/>";
+                                $.post(this.url,msg,function(data){
+                                    xmpp.rid++;
+                                    var msg ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_bind_auth_2' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'><resource>" + xmpp.resource +"</resource></bind></iq></body>";
+                                    $.post(this.url,msg,function(data){
+                                        xmpp.rid++;
+                                        var msg = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
+                                        $.post(this.url,msg,function(data){
+                                            if(options.onConnect != null)
+                                                xmpp.connected = true;
+
+                                            options.onConnect(data);
+                                            xmpp.listen();
+                                        }, 'text');
+                                    }, 'text');
+                                }, 'text');
+                            }else{
+                                if(xmpp.onError != null)
+                                    xmpp.onError({error: "Invalid credentials", data:data});
+                            }
+                        }, 'text');
+                    }else{
+                        if(xmpp.onError != null)
+                            xmpp.onError({error: "Invalid credentials", data:data});
+                    }
+                }, 'text');
+
+            }, 'text');
+        },
+
+        /**
+            * Returns the quoted string
+            * @prams string
+            * @return quoted string
+            */
+        _quote: function(string){
+                return '"'+string+'"';
+        },
+        /**
+        * Do a plain authentication
+        */
+        loginPlain: function(options){
+            this.rid++;
+            var split = options.jid.split("@");
+            var user = split[0];
+            var domain = split[1];
+            var xmpp = this;
+            var text = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'><auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>"+Base64.encode(this.jid+"\u0000"+user+"\u0000"+options.password)+"</auth></body>";
+            var url = this.url;
+            $.post(this.url,text,function(data){
+                var response = $(xmpp.fixBody(data));
+                if(response.find("success").length){
+                    xmpp.rid++;
+                    text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"' to='"+domain+"' xml:lang='en' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'/>";
+                    $.post(url,text,function(data){
+                        //xmpp.messageHandler(data);
+                        xmpp.rid++;
+                        text ="<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_bind_auth_2' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'><resource>" + xmpp.resource +"</resource></bind></iq></body>";
+                        $.post(url,text,function(data){
+                            //xmpp.messageHandler(data);
+                            xmpp.rid++;
+                            text = "<body rid='"+xmpp.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+xmpp.sid+"'><iq type='set' id='_session_auth_2' xmlns='jabber:client'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq></body>";
+                            $.post(url,text,function(data){
+                                if(options.onConnect != null)
+                                    xmpp.connected = true;
+
+                                options.onConnect(data);
+                                xmpp.listen();
+                            }, 'text');
+                        }, 'text');
+                    }, 'text');
+                }else{
+                            if(options.onError != null)
+                                options.onError({error: "Invalid credentials", data:data});
+                }
+            }, 'text');
+        },
+
+        /**
+        * Wait for a new event
+        */
+        listen: function(){
+            var xmpp = this;
+            if(!this.listening){
+                this.listening = true;
+                xmpp = this;
+                if(xmpp.connections == 0) {
+                    this.rid = this.rid+1;
+                    xmpp.connections = xmpp.connections + 1;
+                    $.post(this.url,"<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",function(data){
+                        xmpp.connections = xmpp.connections - 1;
+                        xmpp.listening = false;
+                        var body = $(xmpp.fixBody(data));
+                        //When timeout the connections are 0
+                        //When listener is aborted because you send message (or something)
+                        // the body children are 0 but connections are > 0
+                        if(body.children().length > 0 && xmpp.connections == 0){
+                            xmpp.messageHandler(data);
+                            xmpp.listen();
+                        }
+                    }, 'text');
+                }
+            }
+        },
+
+        /**
+        * Send a raw command
+        * @params String Raw command as plain text
+        * @params callback function callback
+        */
+        sendCommand: function(rawCommand, callback){
+            var self = this;
+
+            this.rid = this.rid + 1;
+            this.listening = true;
+            this.connections = this.connections + 1;
+            var command = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'>"+ rawCommand+"</body>";
+
+            $.post(self.url,command,function(data){
+                self.connections = self.connections - 1;
+                self.messageHandler(data);
+                self.listening = false;
+                self.listen();
+                if(callback != null)
+                        callback(data);
+            }, 'text');
+        },
+
+        /**
+        * Send a text message
+        * @params Object
+        *         {body: "Hey dude!",
+        * 			to: "someone@somewhere.com"
+        * 			resource: "Chat",
+        *          otherAttr: "value"
+        * 			}
+        * @params data: Extra information such errors
+        * @params callback: function(){}
+        */
+        sendMessage: function(options, data, callback){
+            var toJid = options.to;
+            var body = options.body;
+
+            if(options.resource != null)
+                    toJid = toJid+"/"+options.resource;
+            else if(this.resource != "")
+                    toJid = toJid+"/"+this.resource;
+
+            //Remove used paramteres
+            delete options.to;
+            delete options.body;
+            delete options.resource;
+
+            //Other data
+            var dataObj = $("<data>");
+            dataObj.append(data);
+
+            //Add all parameters to the message
+            var messageObj = $("<obj><message type='chat' to='"+toJid+"' xmlns='jabber:client'>bodyCont</message></obj>");
+            messageObj.find("message").attr(options);
+
+            //Use raw text because jquery "destroy" the body tag
+            var message = messageObj.html().split("bodyCont");
+
+            var msg = message[0]+"<body>"+body+"</body>"+dataObj.html()+"</message>";
+            this.sendCommand(msg,callback);
+        },
+
+        /**
+        * Change the presence
+        * @params String The common presences are: null, away, dnd
+        * @params callback: function(){}
+        */
+        setPresence: function(type, callback){
+            var msg;
+            if(type == null)
+                msg = "<presence xmlns='jabber:client'></presence>";
+            else
+                msg = "<presence xmlns='jabber:client'><show>"+type+"</show></presence>";
+            this.sendCommand(msg,callback);
+        },
+
+        /**
+        * Get if you are connected
+        */
+        isConnected: function(){
+            return this.connected;
+        },
+
+        /**
+        * Do a roster request
+        */
+        getRoster: function(callback){
+            var msg = "<iq type='get'><query xmlns='jabber:iq:roster'/></iq>";
+            this.sendCommand(msg,function(data){
+                var roster = [];
+                $.each($(data).find("item"), function(i,item){
+                    var jItem = $(item);
+                    roster.push({name: jItem.attr("name"), subscription: jItem.attr("subscription"), jid: jItem.attr("jid")});
+                });
+                callback(roster);
+            });
+        },
+        messageHandler: function(data, context){
+            var xmpp = this;
+            var response = $(xmpp.fixBody(data));
+
+            $.each(response.find("message"),function(i,element){
+                try{
+                    var e = $(element);
+                    xmpp.onMessage({from: e.attr("from"), body: e.find(".body").html(),attributes:e[0].attributes,data:response.children()});
+                }catch(e){}
+            });
+
+            $.each(response.find("iq"),function(i,element){
+                try{
+                    xmpp.onIq(element);
+                }catch(e){}
+            });
+
+            $.each(response.find("presence"),function(i,element){
+                try{
+                    var e = $(element);
+                    xmpp.onPresence({from: e.attr("from"), to: e.attr("to"), show: e.find("show").html()});
+                }catch(e){}
+            });
+        },
+
+        /**
+        * Replaces <body> tags because jquery does not "parse" this tag
+        * @params String
+        * @return String
+        */
+        fixBody: function(html){
+            html = html.replace(/<\/body>/ig, "</div>")
+            html = html.replace(/<body/ig, "<div class='body'")
+            return html;
+        }
+    }
 })(jQuery);
-
-
-
-
-
-
-
 
 //Dependencies, you can use an external file
 // This code was written by Tyler Akins and has been placed in the
 // public domain.  It would be nice if you left this header intact.
 // Base64 code from Tyler Akins -- http://rumkin.com
-
 var Base64 = (function () {
     var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
@@ -965,4 +853,3 @@ var MD5 = (function () {
 
     return obj;
 })();
-
