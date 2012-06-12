@@ -145,7 +145,38 @@
             options.onConnect();
             xmpp.listen();
         },
-
+        
+        /**
+        * Disconnect from the server using synchronous Ajax
+        * @params function callback
+        */
+        disconnectSync: function(callback){
+            var xmpp = this;
+            xmpp.rid = xmpp.rid + 1;
+            this.listening = true;
+            xmpp.connections = xmpp.connections + 1;
+            var msg = "<body rid='"+ this.rid +"' xmlns='http://jabber.org/protocol/httpbind' sid='"+ this.sid +"' type='terminate'><presence xmlns='jabber:client' type='unavailable'/></body>";
+            $.ajax({
+                type: 'POST',
+                url: this.url,
+                data: msg,
+                success: function(data){
+                    xmpp.connections = xmpp.connections - 1;
+                    xmpp.messageHandler(data);
+                    xmpp.listening = false;
+                    //Do not listen anymore!
+                    //Two callbacks
+                    if(callback != null)
+                    callback(data);
+                    if(xmpp.onDisconnect != null)
+                    xmpp.connected = false;
+                    xmpp.onDisconnect(data);
+                },
+                dataType: 'text',
+                async:false
+            });
+        },
+        
         /**
         * Disconnect from the server
         * @params function callback
