@@ -371,7 +371,7 @@
             if(!this.listening){
                 this.listening = true;
                 xmpp = this;
-                if(xmpp.connections == 0) {
+                if(xmpp.connections === 0) {
                     this.rid = this.rid+1;
                     xmpp.connections = xmpp.connections + 1;
                     $.post(this.url,"<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",function(data){
@@ -381,8 +381,10 @@
                         //When timeout the connections are 0
                         //When listener is aborted because you send message (or something)
                         // the body children are 0 but connections are > 0
-                        if(body.children().length > 0 && xmpp.connections == 0){
+                        if(body.children().length > 0) {
                             xmpp.messageHandler(data);
+                        }
+                        if ( xmpp.connections === 0 ) {
                             xmpp.listen();
                         }
                     }, 'text');
