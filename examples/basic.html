@@ -1,0 +1,33 @@
+<html>
+<head>
+	<title>Basic chat</title>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+	<script type="text/javascript" src="https://raw.github.com/Marko-M/jQuery-XMPP-plugin/master/jquery.xmpp.js"></script>
+	<script type="text/javascript" src="script.js"></script>
+	<link type="text/css" rel="stylesheet" href="style.css">
+</head>
+<body>
+		
+		<br>
+		Login <input type="text" id="jid">
+		<br>
+		Password <input type="password" id="pass">
+		<br>
+		<button id="connectBut">Connect</button>
+		<button id="disconnectBut">Disconnect</button>
+		<br>
+		<div id="log">
+		</div>
+		<div id = "roster">
+			<select id="chatBox_status">
+				<option value="">Available</option>
+				<option value="dnd">Busy</option>
+				<option value="away">Away</option>
+			</select>
+			<input type="text" placeholder=" Search Contacts" id="chatBox_search">
+			<ul id="contacts">
+			</ul>
+		</div>
+		
+	</body>
+</html>
