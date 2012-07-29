@@ -490,6 +490,19 @@
                 callback(roster);
             });
         },
+        
+        /**
+        * Get who is online
+        * When presence it received the event onPresence is triggered
+        */
+        getPresence: function(){
+            var msg = "<presence/>";
+            var self = this;
+            this.sendCommand(msg,function(data){
+				self.messageHandler(data,self)
+            });
+        },
+        
         messageHandler: function(data, context){
             var xmpp = this;
             var response = $(xmpp.fixBody(data));
