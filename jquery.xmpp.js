@@ -34,6 +34,11 @@
         connections: 0,
         resource: null,
         connected: false,
+        wait: 60,
+        inactivity: 60,
+        _jsTimeout: null, //Used to save the javascript timeout
+        _timeoutMilis: 0,
+        __lastAjaxRequest: null,
         
         /**
         * Connect to the server
@@ -42,6 +47,8 @@
         * password:"qwerty",
         * resource:"Chat",
         * url:"/http-bind",
+        * wait: 60,
+        * inactivity: 60,
         * onDisconnect:function(){},
         * onConnect: function(data){},
         * onIq: function(iq){},
@@ -60,6 +67,16 @@
                 this.url = '/http-bind'
             else
                 this.url = options.url;
+                
+            if(!isNaN(options.wait)){
+				this.wait = options.wait
+			}
+
+			this._timeoutMilis = xmpp.wait * 1000
+			
+			if(!isNaN(options.inactivity)){
+				this.inactivity = options.inactivity
+			}
 
             this.uri = this.jid;
             if(options.resource == null)
@@ -78,7 +95,7 @@
             this.onConnect = options.onConnect;
 
             //Init connection
-            var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='60' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
+            var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='"+this.wait+"' inactivity='"+this.inactivity+"' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
             $.post(this.url,msg,function(data){
                 var response = $(xmpp.fixBody(data));
                 xmpp.sid = response.attr("sid");
@@ -363,6 +380,26 @@
             }, 'text');
         },
 
+		/**
+		 * Disconnected cause a network problem
+		 */
+		 __networkError: function(){
+			 //Notify the errors and change the state to disconnected
+			 if($.xmpp.onError != null){
+				 $.xmpp.onError({error:"Network error"})
+			 }
+			 
+			 if($.xmpp.onDisconnect != null){
+				 $.xmpp.onDisconnect()
+			 }
+			 
+			 $.xmpp.__lastAjaxRequest.abort();
+			 $.xmpp.connections = $.xmpp.connections - 1;
+             $.xmpp.listening = false;
+             $.xmpp.connected = false
+			 
+		 },
+		 
         /**
         * Wait for a new event
         */
@@ -372,22 +409,37 @@
                 this.listening = true;
                 xmpp = this;
                 if(xmpp.connections === 0) {
+					//To detect networks problems
+					clearTimeout(xmpp._jsTimeout);
+					xmpp._jsTimeout = setTimeout(xmpp.__networkError,xmpp._timeoutMilis);
+					//
                     this.rid = this.rid+1;
                     xmpp.connections = xmpp.connections + 1;
-                    $.post(this.url,"<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",function(data){
-                        xmpp.connections = xmpp.connections - 1;
-                        xmpp.listening = false;
-                        var body = $(xmpp.fixBody(data));
-                        //When timeout the connections are 0
-                        //When listener is aborted because you send message (or something)
-                        // the body children are 0 but connections are > 0
-                        if(body.children().length > 0) {
-                            xmpp.messageHandler(data);
-                        }
-                        if ( xmpp.connections === 0 ) {
-                            xmpp.listen();
-                        }
-                    }, 'text');
+                    xmpp.__lastAjaxRequest = $.ajax({
+					  type: "POST",
+					  url: this.url,
+					  data: "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",
+					  success: function(data){
+							xmpp.connections = xmpp.connections - 1;
+							xmpp.listening = false;
+							var body = $(xmpp.fixBody(data));
+							//When timeout the connections are 0
+							//When listener is aborted because you send message (or something)
+							// the body children are 0 but connections are > 0
+							if(body.children().length > 0) {
+								xmpp.messageHandler(data);
+							}
+							if ( xmpp.connections === 0 ) {
+								xmpp.listen();
+							}
+					  },
+					  error: function(XMLHttpRequest, textStatus, errorThrown) {
+							if(xmpp.onError != null){
+								xmpp.onError({error: errorThrown, data:textStatus});
+							}
+					  },
+					  dataType: 'text'
+					});
                 }
             }
         },
