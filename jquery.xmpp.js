@@ -37,7 +37,7 @@
         wait: 60,
         inactivity: 60,
         _jsTimeout: null, //Used to save the javascript timeout
-        _timeoutMilis: 0,
+        _timeoutMilis: 500,
         __lastAjaxRequest: null,
         
         /**
@@ -69,14 +69,14 @@
                 this.url = options.url;
                 
             if(!isNaN(options.wait)){
-				this.wait = options.wait
-			}
+                this.wait = options.wait;
+            }
 
-			this._timeoutMilis = xmpp.wait * 1000
-			
-			if(!isNaN(options.inactivity)){
-				this.inactivity = options.inactivity
-			}
+            this._timeoutMilis = xmpp.wait * 1000;
+            
+            if(!isNaN(options.inactivity)){
+                this.inactivity = options.inactivity
+            }
 
             this.uri = this.jid;
             if(options.resource == null)
@@ -121,6 +121,7 @@
         * rid:"",
         * resource:"",
         * url:"",
+        * wait: 60,
         * onDisconnect:function(){},
         * onConnect: function(data){},
         * onIq: function(iq){},
@@ -155,6 +156,12 @@
             this.onError = options.onError;
             this.onDisconnect = options.onDisconnect;
             this.onConnect = options.onConnect;
+
+            if(!isNaN(options.wait)){
+                this.wait = options.wait
+            }
+
+            this._timeoutMilis = xmpp.wait * 1000;
 
             if(options.onConnect != null)
                 xmpp.connected = true;
@@ -380,26 +387,26 @@
             }, 'text');
         },
 
-		/**
-		 * Disconnected cause a network problem
-		 */
-		 __networkError: function(){
-			 //Notify the errors and change the state to disconnected
-			 if($.xmpp.onError != null){
-				 $.xmpp.onError({error:"Network error"})
-			 }
-			 
-			 if($.xmpp.onDisconnect != null){
-				 $.xmpp.onDisconnect()
-			 }
-			 
-			 $.xmpp.__lastAjaxRequest.abort();
-			 $.xmpp.connections = $.xmpp.connections - 1;
+        /**
+         * Disconnected cause a network problem
+         */
+         __networkError: function(){
+             //Notify the errors and change the state to disconnected
+             if($.xmpp.onError != null){
+                 $.xmpp.onError({error:"Network error"})
+             }
+             
+             if($.xmpp.onDisconnect != null){
+                 $.xmpp.onDisconnect()
+             }
+             
+             $.xmpp.__lastAjaxRequest.abort();
+             $.xmpp.connections = $.xmpp.connections - 1;
              $.xmpp.listening = false;
              $.xmpp.connected = false
-			 
-		 },
-		 
+             
+         },
+         
         /**
         * Wait for a new event
         */
@@ -409,37 +416,37 @@
                 this.listening = true;
                 xmpp = this;
                 if(xmpp.connections === 0) {
-					//To detect networks problems
-					clearTimeout(xmpp._jsTimeout);
-					xmpp._jsTimeout = setTimeout(xmpp.__networkError,xmpp._timeoutMilis);
-					//
+                    //To detect networks problems
+                    clearTimeout(xmpp._jsTimeout);
+                    xmpp._jsTimeout = setTimeout(xmpp.__networkError,xmpp._timeoutMilis);
+                    //
                     this.rid = this.rid+1;
                     xmpp.connections = xmpp.connections + 1;
                     xmpp.__lastAjaxRequest = $.ajax({
-					  type: "POST",
-					  url: this.url,
-					  data: "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",
-					  success: function(data){
-							xmpp.connections = xmpp.connections - 1;
-							xmpp.listening = false;
-							var body = $(xmpp.fixBody(data));
-							//When timeout the connections are 0
-							//When listener is aborted because you send message (or something)
-							// the body children are 0 but connections are > 0
-							if(body.children().length > 0) {
-								xmpp.messageHandler(data);
-							}
-							if ( xmpp.connections === 0 ) {
-								xmpp.listen();
-							}
-					  },
-					  error: function(XMLHttpRequest, textStatus, errorThrown) {
-							if(xmpp.onError != null){
-								xmpp.onError({error: errorThrown, data:textStatus});
-							}
-					  },
-					  dataType: 'text'
-					});
+                      type: "POST",
+                      url: this.url,
+                      data: "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' sid='"+this.sid+"'></body>",
+                      success: function(data){
+                            xmpp.connections = xmpp.connections - 1;
+                            xmpp.listening = false;
+                            var body = $(xmpp.fixBody(data));
+                            //When timeout the connections are 0
+                            //When listener is aborted because you send message (or something)
+                            // the body children are 0 but connections are > 0
+                            if(body.children().length > 0) {
+                                xmpp.messageHandler(data);
+                            }
+                            if ( xmpp.connections === 0 ) {
+                                xmpp.listen();
+                            }
+                      },
+                      error: function(XMLHttpRequest, textStatus, errorThrown) {
+                            if(xmpp.onError != null){
+                                xmpp.onError({error: errorThrown, data:textStatus});
+                            }
+                      },
+                      dataType: 'text'
+                    });
                 }
             }
         },
@@ -471,10 +478,10 @@
         * Send a text message
         * @params Object
         *         {body: "Hey dude!",
-        * 			to: "someone@somewhere.com"
-        * 			resource: "Chat",
+        *           to: "someone@somewhere.com"
+        *           resource: "Chat",
         *          otherAttr: "value"
-        * 			}
+        *           }
         * @params data: Extra information such errors
         * @params callback: function(){}
         */
@@ -551,7 +558,7 @@
             var msg = "<presence/>";
             var self = this;
             this.sendCommand(msg,function(data){
-				self.messageHandler(data,self)
+                self.messageHandler(data,self)
             });
         },
         
@@ -568,7 +575,13 @@
 
             $.each(response.find("iq"),function(i,element){
                 try{
-                    xmpp.onIq(element);
+                    var e = $(element);
+                    if(e.find('ping').length==1){
+                        xmpp.handlePing(e);
+                    }
+                    else{
+                        xmpp.onIq(element);
+                    }
                 }catch(e){}
             });
 
@@ -589,6 +602,19 @@
             html = html.replace(/<\/body>/ig, "</div>")
             html = html.replace(/<body/ig, "<div class='body'")
             return html;
+        },
+
+        /**
+        * Handles XMPP Ping request and sends Pong as defined by XEP-0199: XMPP Ping
+        *   (http://xmpp.org/extensions/xep-0199.html)
+        * @param String
+        */
+        handlePing: function(e){
+            var xmpp = this;
+            var id = e.attr('id');
+            var from = e.attr('from');
+            var to = e.attr('to');
+            xmpp.sendCommand("<iq from='"+to+"' to='"+from+"' id='"+id+"' type='result'/>");
         }
     }
 })(jQuery);
