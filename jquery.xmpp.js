@@ -20,6 +20,47 @@
  */
 
 (function($) {
+
+	// Intercept XHRs coming from IE8+ and send via XDomainRequest.
+	$.ajaxTransport("+*", function( options, originalOptions, jqXHR ) {
+    
+		// If this is IE and XDomainRequest is supported.
+		if($.browser.msie && window.XDomainRequest) {
+        
+			var xdr;
+        
+			return {
+            
+				send: function( headers, completeCallback ) {
+
+					// Use Microsoft XDR
+					xdr = new XDomainRequest();
+                
+					// Open the remote URL.
+					xdr.open("post", options.url);
+                
+					xdr.onload = function() {               
+						completeCallback(200, "success", [this.responseText]);  
+					};
+                
+					xdr.ontimeout = function(){
+						completeCallback(408, "error", ["The request timed out."]);
+					};
+                
+					xdr.onerror = function(errorText){
+						completeCallback(404, "error: " + errorText, ["The requested resource could not be found."]);
+					};
+                
+					// Submit the data to the site.
+					xdr.send(options.data);
+				},
+				abort: function() {
+					if(xdr)xdr.abort();
+				}
+			};
+		}
+    });
+
     $.xmpp ={
         rid:null,
         sid:null,
