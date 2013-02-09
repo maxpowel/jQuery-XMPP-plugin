@@ -136,7 +136,7 @@ $(document).ready(function(){
 	$(chat).show();
 	}
 
-	$('.chatBox_minimise').live('click', function() {
+	$('.chatBox_minimise').on('click', function() {
 
 	if ($(this).text() == '_') {
 		var newtop = $(window).height() - 25;
@@ -157,15 +157,15 @@ $(document).ready(function(){
 
 	});
 
-	$('.chatBox_close').live('click', function() {
+	$('.chatBox_close').on('click', function() {
 	$(this).closest('.chatBox').remove();
 	});
 
-	$('#chatBox_status').live('click', function() {
+	$('#chatBox_status').on('click', function() {
 	$.xmpp.setPresence($(this).val());
 	});
 
-	$('#chatBox_search').live('keyup',function() {
+	$('#chatBox_search').on('keyup',function() {
 	$('#contacts li').hide();
 
 	var search_text = $(this).val().toLowerCase();
@@ -181,7 +181,7 @@ $(document).ready(function(){
 	});
 	});
 
-	$(".myCurMsg").live('keyup', function(event){
+	$(".myCurMsg").on('keyup', function(event){
 	if(event.keyCode == 13){
 	$(".chatBox_curmsg .btn_sendMsg").click();
 	}
