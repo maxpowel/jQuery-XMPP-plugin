@@ -25,7 +25,7 @@
 	$.ajaxTransport("+*", function( options, originalOptions, jqXHR ) {
     
 		// If this is IE and XDomainRequest is supported.
-		if($.browser.msie && window.XDomainRequest) {
+		if(navigator.appVersion.indexOf("MSIE") != -1 && window.XDomainRequest) {
         
 			var xdr;
         
