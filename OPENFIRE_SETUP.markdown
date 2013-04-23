@@ -3,7 +3,7 @@ OPENFIRE SERVER SETUP
 
 Openfire is a very powerfull and user friendly XMPP server. Use it with this jquery xmpp is very easy, just following this steps for the next 3 minutes
 
-Prerquisites
+Prerequisites
 -------------
 Apache web server installed with mod_proxy (installed by default)
 Java JRE
@@ -14,7 +14,7 @@ Go to http://www.igniterealtime.org/downloads/index.jsp and download the install
 install it using dpgk -i
 
 Now start the server (if the installation did not init it)
-If you used the .deb package you have a script in /etc/init.d/ which you can use for start, restar or stop the openfire server
+If you used the .deb package you have a script in /etc/init.d/ which can be used to start, restart and stop the openfire server.
 The installation is done via web using the port 9090. Open your web browser and go to http://yourhost:9090
 Follow the steps and your server is ready to use. You can create a new user and try to log in using pidgin (or any xmpp client)
 
@@ -25,7 +25,7 @@ Now we need to enable BOSH and http binding. The second its already enabled but 
 In the main menu, go to the tab "Server configuration" and enable BOSH. In the same page, you should also remeber the port used for http binding.
 In my case it is 7070 but usually is 5280. Anyway, you can take the port number you want. Just remeber it.
 
-Once we have finishe configuring the server restart openfire to get some configuration values refreshed (if not, you will take error 500 when doing BOSH requests)
+Once we have finished configuring the server restart openfire to get some configuration values refreshed (if not, you will take error 500 when doing BOSH requests)
 
 At this point openfire is ready.
 
@@ -36,9 +36,10 @@ Add the following lines
 	ProxyPass /http-bind http://127.0.0.1:7070/http-bind/
 	ProxyPassReverse /http-bind http://127.0.0.1:7070/http-bind/
 	
-Please check the port. It must the same port configured in openfire
+Please check the port. It must be the same port configured in openfire
 
-Now enable the apache module
+Now enable the apache modules
+
 	a2enmod proxy
 	a2enmod proxy_http
 
