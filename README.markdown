@@ -79,13 +79,13 @@ Sending commands
 ----------------
 
 Send a basic text message
-     `$.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat"});`
+     `$.xmpp.sendMessage({body: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat"});`
 Resource parameer is optional and instead of this parameter you can add the resource to the "to" parameter (to:"someone@somewhere.com/MyChat"). Take care of not use resource parameter on initialization if you want to use the second way.
 This resource parameter overrides the resource value provided on initialization (if any).
 
 Send a more complex text message
 
-       $.xmpp.sendMessage({message: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat", otherAttr:"value"},
+       $.xmpp.sendMessage({body: "Hey dude!", to:"someone@somewhere.com", resource:"MyChat", otherAttr:"value"},
        "<error>My custom error</error>",function(){ alert("Message sent!"); });
        
 This command will send the text message and the object specified in the second parameter. The final message will be something like this:

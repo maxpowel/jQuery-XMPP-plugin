@@ -75,6 +75,7 @@
         connections: 0,
         resource: null,
         connected: false,
+        checkNetorkErrors: false,
         wait: 60,
         inactivity: 60,
         _jsTimeout: null, //Used to save the javascript timeout
@@ -109,6 +110,10 @@
             else
                 this.url = options.url;
                 
+                
+                
+            if(options.checkNetorkErrors != null)    
+				this.checkNetorkErrors = options.checkNetorkErrors
             if(!isNaN(options.wait)){
                 this.wait = options.wait;
             }
@@ -458,8 +463,10 @@
                 xmpp = this;
                 if(xmpp.connections === 0) {
                     //To detect networks problems
-                    clearTimeout(xmpp._jsTimeout);
-                    xmpp._jsTimeout = setTimeout(xmpp.__networkError,xmpp._timeoutMilis);
+                    if(xmpp.checkNetorkErrors){
+						clearTimeout(xmpp._jsTimeout);
+						xmpp._jsTimeout = setTimeout(xmpp.__networkError,xmpp._timeoutMilis);
+					}
                     //
                     this.rid = this.rid+1;
                     xmpp.connections = xmpp.connections + 1;
@@ -580,6 +587,7 @@
         * Do a roster request
         */
         getRoster: function(callback){
+			//Some XMPP server send a blank list. Use onIq in these cases
             var msg = "<iq type='get'><query xmlns='jabber:iq:roster'/></iq>";
             this.sendCommand(msg,function(data){
                 var roster = [];
@@ -587,7 +595,8 @@
                     var jItem = $(item);
                     roster.push({name: jItem.attr("name"), subscription: jItem.attr("subscription"), jid: jItem.attr("jid")});
                 });
-                callback(roster);
+                if(callback)
+					callback(roster);
             });
         },
         
@@ -615,7 +624,7 @@
             });
 
             $.each(response.find("iq"),function(i,element){
-                try{
+				if(xmpp.onIq){
                     var e = $(element);
                     if(e.find('ping').length==1){
                         xmpp.handlePing(e);
@@ -623,13 +632,19 @@
                     else{
                         xmpp.onIq(element);
                     }
-                }catch(e){}
+				}
             });
 
             $.each(response.find("presence"),function(i,element){
                 try{
                     var e = $(element);
-                    xmpp.onPresence({from: e.attr("from"), to: e.attr("to"), show: e.find("show").html()});
+                    var status;
+                    if(e.attr("type") != null){
+						status = e.attr("type")
+					}else{
+						status = e.find("show").html()
+					}
+                    xmpp.onPresence({from: e.attr("from"), to: e.attr("to"), show: status});
                 }catch(e){}
             });
         },
