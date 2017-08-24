@@ -142,21 +142,28 @@
 
             //Init connection
             var msg = "<body rid='"+this.rid+"' xmlns='http://jabber.org/protocol/httpbind' to='"+domain+"' xml:lang='en' wait='"+this.wait+"' inactivity='"+this.inactivity+"' hold='1' content='text/xml; charset=utf-8' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'/>";
-            $.post(this.url,msg,function(data){
-                var response = $(xmpp.fixBody(data));
-                xmpp.sid = response.attr("sid");
+            try {
+		    $.post(this.url,msg,function(data){
+			var response = $(xmpp.fixBody(data));
+			xmpp.sid = response.attr("sid");
 
-                if(response.find("mechanism:contains('PLAIN')").length){
-                    xmpp.loginPlain(options);
-                }else if(response.find("mechanism:contains('DIGEST-MD5')").length){
-                    xmpp.loginDigestMD5(options);
-                }else{
-                    if(xmpp.onError != null){
-                        xmpp.onError({error:"No auth method supported", data:data});
-                    }
+			if(response.find("mechanism:contains('PLAIN')").length){
+			    xmpp.loginPlain(options);
+			}else if(response.find("mechanism:contains('DIGEST-MD5')").length){
+			    xmpp.loginDigestMD5(options);
+			}else{
+			    if(xmpp.onError != null){
+				xmpp.onError({error:"No auth method supported", data:data});
+			    }
 
-                }
-            }, 'text');
+			}
+		    }, 'text');
+	    } catch (e) {
+		this.disconnect(function () {
+			// todo
+		});
+		// this.onError(e);    
+	    }
         },
         
         /**
